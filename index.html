@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fältkalender</title>
+<style>
+  :root{
+    --kraft: #EAE1C8;
+    --kraft-dark: #DDD1AE;
+    --soil: #3E2F22;
+    --soil-soft: #5A4632;
+    --wheat: #C9A227;
+    --field-green: #566B3D;
+    --clay: #B0552E;
+    --card: #F8F3E4;
+    --ink: #2C2113;
+    --line: #C6B790;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top left, rgba(255,255,255,0.25), transparent 60%),
+      var(--kraft);
+    background-attachment: fixed;
+    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    color: var(--ink);
+    min-height:100vh;
+    padding: 28px 20px 60px;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  h1,h2,h3{font-family:'Fraunces', serif;}
+
+  .wrap{max-width: 1180px; margin: 0 auto;}
+
+  header{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    border-bottom: 3px solid var(--soil);
+    padding-bottom: 14px; margin-bottom: 22px;
+    flex-wrap: wrap; gap: 12px;
+  }
+  header .title h1{
+    font-size: 2.3rem; font-weight:900; margin:0; color: var(--soil);
+    letter-spacing: -0.5px;
+  }
+  header .title p{
+    margin: 4px 0 0; font-size: 0.8rem; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--soil-soft); font-weight:500;
+  }
+  .stamp{
+    border: 2px solid var(--soil); border-radius: 999px;
+    padding: 6px 16px; font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--soil);
+    font-weight:600; white-space:nowrap; display:flex; align-items:center;
+  }
+  .conn-dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background:#999;}
+  .conn-dot.ok{background: var(--field-green);}
+  .conn-dot.err{background: var(--clay);}
+
+  .panel{
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 3px 3px 0 rgba(62,47,34,0.12);
+    padding: 18px 20px;
+    margin-bottom: 22px;
+  }
+  .panel h2{
+    font-size: 1.1rem; margin: 0 0 12px; color: var(--soil);
+    display:flex; align-items:center; gap:8px;
+  }
+  .panel h2::before{
+    content:''; width:8px; height:8px; background: var(--field-green); display:inline-block; border-radius:1px;
+  }
+
+  .field-row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+  .field-chip{
+    display:flex; align-items:center; gap:8px;
+    background: var(--kraft-dark); border: 1px solid var(--line);
+    padding: 6px 10px 6px 12px; border-radius: 3px; font-size: 0.82rem;
+  }
+  .field-chip button{
+    background:none; border:none; color: var(--clay); cursor:pointer;
+    font-family: inherit; font-size: 0.9rem; line-height:1; padding:0 2px;
+  }
+  .add-field{display:flex; gap:8px; margin-top:12px;}
+  input[type=text], input[type=password]{
+    font-family: inherit; padding: 8px 10px; border: 1px solid var(--soil-soft);
+    border-radius: 3px; background: #fff; font-size: 0.85rem; flex:1; min-width:120px;
+  }
+  select{
+    font-family: inherit; padding: 8px 10px; border: 1px solid var(--soil-soft);
+    border-radius: 3px; background: #fff; font-size: 0.85rem;
+  }
+  button.primary{
+    background: var(--soil); color: var(--kraft); border:none;
+    padding: 8px 16px; border-radius: 3px; font-family: inherit;
+    font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;
+    cursor:pointer; font-weight:600;
+  }
+  button.primary:hover{background: var(--soil-soft);}
+  button.primary:disabled{opacity:0.5; cursor:not-allowed;}
+  button.ghost{
+    background: transparent; border: 1px solid var(--soil-soft); color: var(--soil-soft);
+    padding: 6px 12px; border-radius: 3px; font-family: inherit; font-size: 0.75rem;
+    cursor:pointer; text-transform:uppercase; letter-spacing:0.5px;
+  }
+
+  .grid-scroll{overflow-x:auto; border-radius:4px;}
+  table.cal{
+    border-collapse: collapse; width: 100%; min-width: 920px;
+    background: var(--card); border: 1px solid var(--line);
+  }
+  table.cal th, table.cal td{
+    border: 1px solid var(--line); vertical-align: top;
+  }
+  table.cal thead th{
+    background: var(--soil); color: var(--kraft);
+    font-family:'Fraunces', serif; font-weight:700; font-size: 0.82rem;
+    padding: 10px 4px; text-align:center; position: sticky; top:0;
+  }
+  table.cal thead th.field-col-header{
+    background: var(--soil-soft); text-align:left; padding-left: 12px;
+  }
+  table.cal tbody th{
+    text-align:left; background: var(--kraft-dark); font-family: inherit;
+    font-weight:600; font-size: 0.82rem; padding: 10px 12px; white-space:nowrap;
+    min-width: 140px; position:sticky; left:0;
+  }
+  table.cal td{
+    padding: 6px; min-width: 92px; cursor:pointer; transition: background 0.15s;
+  }
+  table.cal td:hover{background: rgba(86,107,61,0.10);}
+  .task-badge{
+    display:block; font-size: 0.68rem; padding: 3px 6px; border-radius: 3px;
+    margin-bottom: 4px; color: #fff; font-weight:600; letter-spacing:0.2px;
+    line-height:1.3; word-break: break-word;
+  }
+  .empty-cell{
+    color: var(--line); font-size: 1.1rem; text-align:center; padding-top: 6px;
+  }
+
+  .modal-backdrop{
+    position:fixed; inset:0; background: rgba(44,33,19,0.45);
+    display:flex; align-items:center; justify-content:center; z-index:50;
+    padding: 20px;
+  }
+  .modal{
+    background: var(--card); border: 1px solid var(--soil);
+    border-radius: 5px; padding: 22px; width: 380px; max-width: 100%;
+    box-shadow: 5px 5px 0 rgba(62,47,34,0.25);
+  }
+  .modal h3{margin:0 0 4px; color: var(--soil); font-size:1.2rem;}
+  .modal .sub{font-size:0.75rem; color: var(--soil-soft); text-transform:uppercase; letter-spacing:1px; margin-bottom:14px;}
+  .modal label{display:block; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; color: var(--soil-soft); margin: 12px 0 5px;}
+  .modal select, .modal input[type=text]{width:100%;}
+  .existing-tasks{margin-top:14px; display:flex; flex-direction:column; gap:6px;}
+  .existing-task-row{
+    display:flex; align-items:center; gap:8px; background: var(--kraft-dark);
+    padding: 6px 8px; border-radius:3px; font-size:0.78rem;
+  }
+  .existing-task-row .swatch{width:10px; height:10px; border-radius:2px; flex-shrink:0;}
+  .existing-task-row .note{flex:1;}
+  .existing-task-row button{
+    background:none; border:none; color: var(--clay); cursor:pointer; font-family:inherit; font-size:0.9rem;
+  }
+  .modal-actions{display:flex; justify-content:space-between; gap:10px; margin-top:18px;}
+  .legend{display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;}
+  .legend-item{display:flex; align-items:center; gap:6px; font-size:0.72rem; color: var(--soil-soft);}
+  .legend-swatch{width:10px; height:10px; border-radius:2px;}
+  .footer-note{text-align:center; font-size:0.72rem; color: var(--soil-soft); margin-top: 24px; letter-spacing:0.5px;}
+  .status{font-size:0.72rem; color: var(--soil-soft); margin-top:6px; min-height:14px;}
+
+  .setup-box{
+    background: #FBF6EA; border: 1px dashed var(--clay); border-radius: 4px;
+    padding: 16px 18px; font-size: 0.82rem; line-height:1.6;
+  }
+  .setup-box code{
+    background: var(--kraft-dark); padding: 1px 5px; border-radius: 3px; font-size: 0.78rem;
+  }
+
+  .gate{
+    position:fixed; inset:0; background: var(--kraft);
+    display:flex; align-items:center; justify-content:center; z-index:100;
+    padding:20px;
+  }
+  .gate-card{
+    background: var(--card); border: 1px solid var(--soil); border-radius:5px;
+    padding: 32px; width: 340px; max-width:100%; text-align:center;
+    box-shadow: 5px 5px 0 rgba(62,47,34,0.2);
+  }
+  .gate-card h2{margin:0 0 6px; color: var(--soil);}
+  .gate-card p{font-size:0.8rem; color: var(--soil-soft); margin: 0 0 18px;}
+  .gate-card input{width:100%; margin-bottom:12px; text-align:center;}
+  .gate-error{color: var(--clay); font-size:0.78rem; min-height:16px; margin-top:8px;}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <h2>🔒 Fältkalender</h2>
+    <p>Ange lösenordet du fått av gårdens ägare</p>
+    <input type="password" id="gateInput" placeholder="Lösenord">
+    <button class="primary" id="gateBtn" style="width:100%;">Lås upp</button>
+    <div class="gate-error" id="gateError"></div>
+  </div>
+</div>
+
+<div class="wrap hidden" id="appRoot">
+  <header>
+    <div class="title">
+      <h1>Fältkalender</h1>
+      <p>Sådd &middot; Gödsling &middot; Kalkning &middot; Skörd</p>
+    </div>
+    <div class="stamp"><span class="conn-dot" id="connDot"></span><span id="connText">Ansluter…</span></div>
+  </header>
+
+  <div class="panel" id="setupPanel" style="display:none;">
+    <h2>Konfiguration saknas</h2>
+    <div class="setup-box">
+      Den här sidan behöver kopplas till en databas innan den fungerar. Öppna filen i en textredigerare
+      och fyll i <code>SUPABASE_URL</code> och <code>SUPABASE_ANON_KEY</code> högst upp i
+      <code>&lt;script&gt;</code>-taggen. Se instruktionerna du fick tillsammans med filen.
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Fält</h2>
+    <div class="field-row" id="fieldChips"></div>
+    <div class="add-field">
+      <input type="text" id="newFieldName" placeholder="Fältnamn, t.ex. Fält 94 – Havre">
+      <button class="primary" id="addFieldBtn">Lägg till fält</button>
+    </div>
+    <div class="status" id="fieldStatus"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Kalender</h2>
+    <div class="grid-scroll">
+      <table class="cal" id="calTable"></table>
+    </div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="footer-note">Klicka på en ruta för att lägga till eller ta bort en åtgärd. Sidan uppdateras automatiskt med jämna mellanrum.</div>
+</div>
+
+<div id="modalRoot"></div>
+
+<!-- Supabase JS client (loaded from CDN in the visitor's browser) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ============================================================
+   FYLL I DINA EGNA VÄRDEN HÄR (se medföljande instruktioner):
+   ============================================================ */
+const SUPABASE_URL = https://mlikncnifrapxvaeetmy.supabase.co/rest/v1/";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1saWtuY25pZnJhcHh2YWVldG15Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3NzcxMjksImV4cCI6MjEwMjM1MzEyOX0.ez7S6BIsYAf9ZrI96uIjWCevE9MMYRDPl3zJz1UypLI";
+/* ============================================================ */
+
+const MONTHS = ["Jan","Feb","Mar","Apr","Maj","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
+const TASK_TYPES = [
+  {id:"plow", label:"Plöja", color:"#7A5A3A"},
+  {id:"cultivate", label:"Kultivera", color:"#A47B4A"},
+  {id:"sow", label:"Så / Plantera", color:"#566B3D"},
+  {id:"fertilize", label:"Gödsla", color:"#8A6D1F"},
+  {id:"lime", label:"Kalka", color:"#9AA3A8"},
+  {id:"spray", label:"Bekämpa", color:"#5A7D8C"},
+  {id:"harvest", label:"Skörda", color:"#B0552E"},
+  {id:"other", label:"Övrigt", color:"#8C6B4F"},
+];
+function typeInfo(id){ return TASK_TYPES.find(t=>t.id===id) || TASK_TYPES[TASK_TYPES.length-1]; }
+
+let fields = [];
+let tasks = [];
+let supabase = null;
+let PASSCODE = null;
+const STORAGE_KEY = 'faltkalender_pw';
+let pollTimer = null;
+
+function setConn(status, text){
+  const dot = document.getElementById('connDot');
+  const label = document.getElementById('connText');
+  dot.className = 'conn-dot ' + status;
+  label.textContent = text;
+}
+
+function showApp(){
+  document.getElementById('gate').classList.add('hidden');
+  document.getElementById('appRoot').classList.remove('hidden');
+}
+function showGate(errorMsg){
+  document.getElementById('appRoot').classList.add('hidden');
+  document.getElementById('gate').classList.remove('hidden');
+  document.getElementById('gateError').textContent = errorMsg || '';
+}
+
+async function tryPasscode(input){
+  if(!SUPABASE_URL || SUPABASE_URL.indexOf('YOUR_') === 0 || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.indexOf('YOUR_') === 0){
+    PASSCODE = input;
+    showApp();
+    document.getElementById('setupPanel').style.display = 'block';
+    setConn('err', 'Ej konfigurerad');
+    render();
+    return;
+  }
+  if(!supabase){
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  const {data, error} = await supabase.rpc('check_passcode', {input});
+  if(error || data !== true){
+    showGate('Fel lösenord, försök igen.');
+    localStorage.removeItem(STORAGE_KEY);
+    return;
+  }
+  PASSCODE = input;
+  localStorage.setItem(STORAGE_KEY, input);
+  showApp();
+  await loadAll();
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(loadAll, 15000);
+}
+
+async function loadAll(){
+  if(!supabase || !PASSCODE) return;
+  setConn('', 'Ansluter…');
+  try{
+    const [{data: fData, error: fErr}, {data: tData, error: tErr}] = await Promise.all([
+      supabase.rpc('list_fields', {input: PASSCODE}),
+      supabase.rpc('list_tasks', {input: PASSCODE})
+    ]);
+    if(fErr || tErr) throw (fErr || tErr);
+    fields = fData || [];
+    tasks = tData || [];
+    setConn('ok', 'Ansluten');
+  }catch(e){
+    console.error(e);
+    setConn('err', 'Kunde inte ansluta');
+    document.getElementById('fieldStatus').textContent = 'Kunde inte hämta data.';
+  }
+  render();
+}
+
+async function addField(name){
+  if(!name.trim() || !supabase) return;
+  const {error} = await supabase.rpc('add_field', {input: PASSCODE, field_name: name.trim()});
+  if(error){ console.error(error); document.getElementById('fieldStatus').textContent = 'Kunde inte lägga till fältet.'; return; }
+  await loadAll();
+}
+async function removeField(id){
+  const {error} = await supabase.rpc('remove_field', {input: PASSCODE, target_id: id});
+  if(error){ console.error(error); return; }
+  await loadAll();
+}
+async function addTask(fieldId, month, typeId, note){
+  const {error} = await supabase.rpc('add_task', {input: PASSCODE, p_field_id: fieldId, p_month: month, p_type_id: typeId, p_note: (note||'').trim()});
+  if(error){ console.error(error); return; }
+  await loadAll();
+}
+async function removeTask(taskId){
+  const {error} = await supabase.rpc('remove_task', {input: PASSCODE, target_id: taskId});
+  if(error){ console.error(error); return; }
+  await loadAll();
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function renderFieldChips(){
+  const wrap = document.getElementById('fieldChips');
+  wrap.innerHTML = '';
+  if(fields.length===0){
+    const p = document.createElement('span');
+    p.style.fontSize='0.8rem'; p.style.color='var(--soil-soft)';
+    p.textContent = 'Inga fält ännu — lägg till ditt första fält nedan.';
+    wrap.appendChild(p);
+    return;
+  }
+  fields.forEach(f=>{
+    const chip = document.createElement('div');
+    chip.className = 'field-chip';
+    chip.innerHTML = `<span>${escapeHtml(f.name)}</span>`;
+    const btn = document.createElement('button');
+    btn.textContent = '✕';
+    btn.title = 'Ta bort fält';
+    btn.onclick = ()=>{
+      if(confirm(`Ta bort "${f.name}" och alla dess åtgärder för alla?`)) removeField(f.id);
+    };
+    chip.appendChild(btn);
+    wrap.appendChild(chip);
+  });
+}
+
+function renderLegend(){
+  const wrap = document.getElementById('legend');
+  wrap.innerHTML = '';
+  TASK_TYPES.forEach(t=>{
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<span class="legend-swatch" style="background:${t.color}"></span>${t.label}`;
+    wrap.appendChild(item);
+  });
+}
+
+function renderTable(){
+  const table = document.getElementById('calTable');
+  table.innerHTML = '';
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  const th0 = document.createElement('th');
+  th0.className = 'field-col-header';
+  th0.textContent = 'Fält';
+  headRow.appendChild(th0);
+  MONTHS.forEach(m=>{
+    const th = document.createElement('th');
+    th.textContent = m;
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  if(fields.length===0){
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 13;
+    td.style.textAlign='center';
+    td.style.color='var(--soil-soft)';
+    td.style.padding='20px';
+    td.textContent = 'Lägg till ett fält ovan för att börja planera.';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  }
+  fields.forEach(f=>{
+    const tr = document.createElement('tr');
+    const th = document.createElement('th');
+    th.textContent = f.name;
+    tr.appendChild(th);
+    for(let m=1;m<=12;m++){
+      const td = document.createElement('td');
+      const tasksHere = tasks.filter(t=>t.field_id===f.id && t.month===m);
+      if(tasksHere.length===0){
+        const empty = document.createElement('div');
+        empty.className = 'empty-cell';
+        empty.textContent = '+';
+        td.appendChild(empty);
+      } else {
+        tasksHere.forEach(t=>{
+          const badge = document.createElement('span');
+          badge.className = 'task-badge';
+          badge.style.background = typeInfo(t.type_id).color;
+          badge.textContent = t.note ? `${typeInfo(t.type_id).label}: ${t.note}` : typeInfo(t.type_id).label;
+          td.appendChild(badge);
+        });
+      }
+      td.onclick = ()=> openCellModal(f, m);
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+function openCellModal(field, month){
+  const root = document.getElementById('modalRoot');
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.onclick = (e)=>{ if(e.target===backdrop) closeModal(); };
+
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+
+  let optionsHtml = TASK_TYPES.map(t=>`<option value="${t.id}">${t.label}</option>`).join('');
+
+  modal.innerHTML = `
+    <h3>${escapeHtml(field.name)}</h3>
+    <div class="sub">${MONTHS[month-1]} &middot; lägg till åtgärd</div>
+    <label>Typ av åtgärd</label>
+    <select id="taskType">${optionsHtml}</select>
+    <label>Anteckning (valfritt)</label>
+    <input type="text" id="taskNote" placeholder="t.ex. Vete, 150 kg/ha">
+    <div class="modal-actions">
+      <button class="ghost" id="cancelBtn">Stäng</button>
+      <button class="primary" id="saveTaskBtn">Lägg till</button>
+    </div>
+    <div class="existing-tasks" id="existingTasks"></div>
+  `;
+
+  backdrop.appendChild(modal);
+  root.appendChild(backdrop);
+
+  const existingWrap = modal.querySelector('#existingTasks');
+  function renderExisting(){
+    existingWrap.innerHTML = '';
+    const current = tasks.filter(t=>t.field_id===field.id && t.month===month);
+    current.forEach(t=>{
+      const row = document.createElement('div');
+      row.className = 'existing-task-row';
+      row.innerHTML = `<span class="swatch" style="background:${typeInfo(t.type_id).color}"></span>
+        <span class="note">${typeInfo(t.type_id).label}${t.note ? ' – ' + escapeHtml(t.note) : ''}</span>`;
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '✕';
+      delBtn.onclick = async ()=>{ await removeTask(t.id); renderExisting(); };
+      row.appendChild(delBtn);
+      existingWrap.appendChild(row);
+    });
+  }
+  renderExisting();
+
+  modal.querySelector('#cancelBtn').onclick = closeModal;
+  modal.querySelector('#saveTaskBtn').onclick = async ()=>{
+    const typeId = modal.querySelector('#taskType').value;
+    const note = modal.querySelector('#taskNote').value;
+    await addTask(field.id, month, typeId, note);
+    modal.querySelector('#taskNote').value = '';
+    renderExisting();
+  };
+
+  function closeModal(){
+    root.innerHTML = '';
+  }
+}
+
+function render(){
+  renderFieldChips();
+  renderTable();
+  renderLegend();
+}
+
+document.getElementById('addFieldBtn').onclick = ()=>{
+  const input = document.getElementById('newFieldName');
+  addField(input.value);
+  input.value = '';
+};
+document.getElementById('newFieldName').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){
+    document.getElementById('addFieldBtn').click();
+  }
+});
+
+document.getElementById('gateBtn').onclick = ()=>{
+  const val = document.getElementById('gateInput').value;
+  if(val) tryPasscode(val);
+};
+document.getElementById('gateInput').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter') document.getElementById('gateBtn').click();
+});
+
+// Auto-try a remembered passcode from a previous visit
+const remembered = localStorage.getItem(STORAGE_KEY);
+if(remembered){
+  document.getElementById('gateInput').value = remembered;
+  tryPasscode(remembered);
+}
+</script>
+</body>
+</html>
