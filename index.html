@@ -275,7 +275,7 @@ function typeInfo(id){ return TASK_TYPES.find(t=>t.id===id) || TASK_TYPES[TASK_T
 
 let fields = [];
 let tasks = [];
-let supabase = null;
+let supabaseClient = null;
 let PASSCODE = null;
 const STORAGE_KEY = 'faltkalender_pw';
 let pollTimer = null;
@@ -306,10 +306,10 @@ async function tryPasscode(input){
     render();
     return;
   }
-  if(!supabase){
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  if(!supabaseClient){
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
-  const {data, error} = await supabase.rpc('check_passcode', {input});
+  const {data, error} = await supabaseClient.rpc('check_passcode', {input});
   if(error || data !== true){
     showGate('Fel lösenord, försök igen.');
     localStorage.removeItem(STORAGE_KEY);
@@ -324,12 +324,12 @@ async function tryPasscode(input){
 }
 
 async function loadAll(){
-  if(!supabase || !PASSCODE) return;
+  if(!supabaseClient || !PASSCODE) return;
   setConn('', 'Ansluter…');
   try{
     const [{data: fData, error: fErr}, {data: tData, error: tErr}] = await Promise.all([
-      supabase.rpc('list_fields', {input: PASSCODE}),
-      supabase.rpc('list_tasks', {input: PASSCODE})
+      supabaseClient.rpc('list_fields', {input: PASSCODE}),
+      supabaseClient.rpc('list_tasks', {input: PASSCODE})
     ]);
     if(fErr || tErr) throw (fErr || tErr);
     fields = fData || [];
@@ -344,23 +344,23 @@ async function loadAll(){
 }
 
 async function addField(name){
-  if(!name.trim() || !supabase) return;
-  const {error} = await supabase.rpc('add_field', {input: PASSCODE, field_name: name.trim()});
+  if(!name.trim() || !supabaseClient) return;
+  const {error} = await supabaseClient.rpc('add_field', {input: PASSCODE, field_name: name.trim()});
   if(error){ console.error(error); document.getElementById('fieldStatus').textContent = 'Kunde inte lägga till fältet.'; return; }
   await loadAll();
 }
 async function removeField(id){
-  const {error} = await supabase.rpc('remove_field', {input: PASSCODE, target_id: id});
+  const {error} = await supabaseClient.rpc('remove_field', {input: PASSCODE, target_id: id});
   if(error){ console.error(error); return; }
   await loadAll();
 }
 async function addTask(fieldId, month, typeId, note){
-  const {error} = await supabase.rpc('add_task', {input: PASSCODE, p_field_id: fieldId, p_month: month, p_type_id: typeId, p_note: (note||'').trim()});
+  const {error} = await supabaseClient.rpc('add_task', {input: PASSCODE, p_field_id: fieldId, p_month: month, p_type_id: typeId, p_note: (note||'').trim()});
   if(error){ console.error(error); return; }
   await loadAll();
 }
 async function removeTask(taskId){
-  const {error} = await supabase.rpc('remove_task', {input: PASSCODE, target_id: taskId});
+  const {error} = await supabaseClient.rpc('remove_task', {input: PASSCODE, target_id: taskId});
   if(error){ console.error(error); return; }
   await loadAll();
 }
